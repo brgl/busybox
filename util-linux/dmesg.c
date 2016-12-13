@@ -58,6 +58,20 @@
 #include <sys/klog.h>
 #include "libbb.h"
 
+enum {
+	SYSLOG_ACTION_CLOSE = 0,
+	SYSLOG_ACTION_OPEN,
+	SYSLOG_ACTION_READ,
+	SYSLOG_ACTION_READ_ALL,
+	SYSLOG_ACTION_READ_CLEAR,
+	SYSLOG_ACTION_CLEAR,
+	SYSLOG_ACTION_CONSOLE_OFF,
+	SYSLOG_ACTION_CONSOLE_ON,
+	SYSLOG_ACTION_CONSOLE_LEVEL,
+	SYSLOG_ACTION_SIZE_UNREAD,
+	SYSLOG_ACTION_SIZE_BUFFER,
+};
+
 int dmesg_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int dmesg_main(int argc UNUSED_PARAM, char **argv)
 {
@@ -73,20 +87,24 @@ int dmesg_main(int argc UNUSED_PARAM, char **argv)
 
 	opts = getopt32(argv, "cs:+n:+r", &len, &level);
 	if (opts & OPT_n) {
-		if (klogctl(8, NULL, (long) level))
+		if (klogctl(SYSLOG_ACTION_CONSOLE_LEVEL, NULL, (long) level))
 			bb_perror_msg_and_die("klogctl");
 		return EXIT_SUCCESS;
 	}
 
 	if (!(opts & OPT_s))
-		len = klogctl(10, NULL, 0); /* read ring buffer size */
+		/* read ring buffer size */
+		len = klogctl(SYSLOG_ACTION_SIZE_BUFFER, NULL, 0);
 	if (len < 16*1024)
 		len = 16*1024;
 	if (len > 16*1024*1024)
 		len = 16*1024*1024;
 
 	buf = xmalloc(len);
-	len = klogctl(3 + (opts & OPT_c), buf, len); /* read ring buffer */
+	/* read ring buffer */
+	len = klogctl((opts & OPT_c) ? SYSLOG_ACTION_READ_CLEAR
+				     : SYSLOG_ACTION_READ_ALL,
+		       buf, len);
 	if (len < 0)
 		bb_perror_msg_and_die("klogctl");
 	if (len == 0)
